@@ -8,7 +8,7 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-list_of_packages <- c("janitor", "tidyverse", "lubridate", "ggthemes", "RColorBrewer")
+list_of_packages <- c("janitor", "tidyverse", "lubridate", "ggthemes", "RColorBrewer", "cowplot", "colorspace", "sf", "maps")
 lapply(list_of_packages, library, character.only = TRUE)
 ```
 
@@ -19,20 +19,61 @@ Souce: Common Core of Data from the National Center for Education Statistics (NC
 
 ```{r get_data}
 school_diversity <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-09-24/school_diversity.csv")
+states <- map_data("state")
+
+```
+
+
+```{r explore}
+school_diversity  %>%
+  group_by(d_Locale_Txt, SCHOOL_YEAR) %>%
+    summarise(total_population = sum(Total))
 ```
 
 
 ```{r wrangle }
 
+#add 
+states$ST<-state.abb[match(states$region,tolower(state.name))]
+
+
+states$abb <- state.abb[which(state.name == toupper(states$region))]
+
+states$abb <- state.abb[grep(states$region, state.name, ignore.case = TRUE)]
+
+school_diversity$white_count <- school_diversity$White/100 * school_diversity$Total
+  
+school_diversity$city <- grepl("city", school_diversity$d_Locale_Txt)  
 
 tx_school_diversity <- school_diversity %>%
   filter(ST == "TX")
 
+st_school_diversity <- school_diversity %>%
+  group_by(ST, SCHOOL_YEAR, city) %>%
+    summarise(total_population = sum(Total), total_w_pop = sum(white_count))
+  
+st_school_diversity$white_percentage <- st_school_diversity$total_w_pop/st_school_diversity$total_population
+
+st_school_diversity$year <- ifelse(st_school_diversity$SCHOOL_YEAR == "1994-1995", 1995, 2017) 
+
+st_school_diversity_wide <- st_school_diversity %>% pivot_wider(id_cols = c(ST,city), names_from = c(year, city) , values_from  = c(total_population,white_percentage))
+
+st_school_diversity_wide$urban_rural_difference_1995 <- st_school_diversity_wide$white_percentage_1995_TRUE - st_school_diversity_wide$white_percentage_1995_FALSE
+
+st_school_diversity_wide$urban_rural_difference_2017 <- st_school_diversity_wide$white_percentage_2017_TRUE - st_school_diversity_wide$white_percentage_2017_FALSE
+
+st_school_diversity_wide$urban_rural_change <- st_school_diversity_wide$urban_rural_difference_2017 - st_school_diversity_wide$urban_rural_difference_1995
+
+
+tmp <- left_join(states, st_school_diversity_wide, by = "ST")
+
 ```
 
+
 ```{r plot}
-tx_school_diversity %>%
-  ggplot() + 
-  geom_point(mapping = aes(x = Total, y = Hispanic)) 
+
+p<-ggplot(tmp, aes(long, lat, group=group, fill=urban_rural_change)) +
+  geom_polygon(color="grey")
+p
 
 ```
