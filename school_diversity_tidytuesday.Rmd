@@ -69,7 +69,8 @@ city_rural_change_data <- left_join(states, sd_st_type_wide, by = "ST")
 city_rural_change_plot <-ggplot(city_rural_change_data, aes(long, lat, group=group, fill=city_rural_change)) +
   geom_polygon()+
   scale_fill_gradient2(low = "purple", mid = "white",  high = "orange", name  ="Divergence in Urban/Rural Demographics:
-(higher number is increasing difference) ", breaks =  c(-0.16,0,.27), labels=scales::percent_format(accuracy = 1)) +
+(higher number is increasing difference
+in percent non-hispanic white students) ", breaks =  c(-0.16,0,.27), labels=scales::percent_format(accuracy = 1)) +
   coord_map("albers",  at0 = 45.5, lat1 = 29.5) +
   ggtitle(label = "Divergence in Urban and Rural 
 Percentage Non-Hispanic White Students",
