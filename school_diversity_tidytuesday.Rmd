@@ -1,5 +1,5 @@
 ---
-title: "School_diverstiy_Tidy_Tues"
+title: "School_diversity_Tidy_Tues"
 author: "KGJ"
 date: "9/23/2019"
 output: html_document
@@ -8,7 +8,7 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-list_of_packages <- c("janitor", "tidyverse", "lubridate", "ggthemes", "RColorBrewer", "cowplot", "colorspace", "sf", "maps")
+list_of_packages <- c("janitor", "tidyverse", "lubridate", "ggthemes", "RColorBrewer", "sf", "maps","mapproj", "scales")
 lapply(list_of_packages, library, character.only = TRUE)
 ```
 
@@ -33,47 +33,54 @@ school_diversity  %>%
 
 ```{r wrangle }
 
-#add 
+#add state abbreviation to map data
 states$ST<-state.abb[match(states$region,tolower(state.name))]
-
-
-states$abb <- state.abb[which(state.name == toupper(states$region))]
-
-states$abb <- state.abb[grep(states$region, state.name, ignore.case = TRUE)]
+#states$abb <- state.abb[grep(states$region, state.name, ignore.case = TRUE)]
 
 school_diversity$white_count <- school_diversity$White/100 * school_diversity$Total
-  
-school_diversity$city <- grepl("city", school_diversity$d_Locale_Txt)  
+  school_diversity$type <- word(school_diversity$d_Locale_Txt, sep = "-")
 
-tx_school_diversity <- school_diversity %>%
-  filter(ST == "TX")
-
-st_school_diversity <- school_diversity %>%
-  group_by(ST, SCHOOL_YEAR, city) %>%
+###
+sd_st_type_long <- school_diversity %>%
+  group_by(ST, SCHOOL_YEAR, type) %>%
     summarise(total_population = sum(Total), total_w_pop = sum(white_count))
   
-st_school_diversity$white_percentage <- st_school_diversity$total_w_pop/st_school_diversity$total_population
+sd_st_type_long$white_percentage <- sd_st_type_long$total_w_pop/sd_st_type_long$total_population
 
-st_school_diversity$year <- ifelse(st_school_diversity$SCHOOL_YEAR == "1994-1995", 1995, 2017) 
+sd_st_type_long$year <- ifelse(sd_st_type_long$SCHOOL_YEAR == "1994-1995", 1995, 2017) 
 
-st_school_diversity_wide <- st_school_diversity %>% pivot_wider(id_cols = c(ST,city), names_from = c(year, city) , values_from  = c(total_population,white_percentage))
+sd_st_type_wide <- sd_st_type_long %>% pivot_wider(id_cols = c(ST,type), names_from = c(year, type) , values_from  = c(total_population,white_percentage))
 
-st_school_diversity_wide$urban_rural_difference_1995 <- st_school_diversity_wide$white_percentage_1995_TRUE - st_school_diversity_wide$white_percentage_1995_FALSE
+sd_st_type_wide$city_rural_difference_1995 <- abs(sd_st_type_wide$white_percentage_1995_city - sd_st_type_wide$white_percentage_1995_rural)
 
-st_school_diversity_wide$urban_rural_difference_2017 <- st_school_diversity_wide$white_percentage_2017_TRUE - st_school_diversity_wide$white_percentage_2017_FALSE
+sd_st_type_wide$city_rural_difference_2017 <- abs(sd_st_type_wide$white_percentage_2017_city - sd_st_type_wide$white_percentage_2017_rural)
 
-st_school_diversity_wide$urban_rural_change <- st_school_diversity_wide$urban_rural_difference_2017 - st_school_diversity_wide$urban_rural_difference_1995
+sd_st_type_wide$city_rural_change <- sd_st_type_wide$city_rural_difference_2017 - sd_st_type_wide$city_rural_difference_1995
 
 
-tmp <- left_join(states, st_school_diversity_wide, by = "ST")
-
+city_rural_change_data <- left_join(states, sd_st_type_wide, by = "ST")
+##
 ```
+
 
 
 ```{r plot}
 
-p<-ggplot(tmp, aes(long, lat, group=group, fill=urban_rural_change)) +
-  geom_polygon(color="grey")
-p
+city_rural_change_plot <-ggplot(city_rural_change_data, aes(long, lat, group=group, fill=city_rural_change)) +
+  geom_polygon()+
+  scale_fill_gradient2(low = "purple", mid = "white",  high = "orange", name  ="Divergence in Urban/Rural Demographics:
+(higher number is increasing difference) ", breaks =  c(-0.16,0,.27), labels=scales::percent_format(accuracy = 1)) +
+  coord_map("albers",  at0 = 45.5, lat1 = 29.5) +
+  ggtitle(label = "Divergence in Urban and Rural 
+Percentage Non-Hispanic White Students",
+          subtitle = "1995 to 2017")  +
+  labs(caption = "Source: National Center for Education Statistics via Washington Post, h/t #TidyTuesday") +
+      theme(legend.position="bottom", plot.subtitle = element_text(face = "italic"))
 
+city_rural_change_plot 
+
+```
+
+```{r save}
+ggsave(filename= "nces.png", device = "png")
 ```
