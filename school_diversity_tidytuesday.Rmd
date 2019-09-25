@@ -108,7 +108,7 @@ budget_plot <- city_rural_change_budget_data %>%
   labs(caption = "Source: National Center for Education Statistics via Washington Post, Census h/t #TidyTuesday") +
       theme(legend.position="bottom", plot.subtitle = element_text(face = "italic"))+
   ggtitle(label = "States with Higher Urban/Rural Demographic Divergence 
-Invested Less in K-12 Education over time*",
+Invested Relatively Less in K-12 Education over time*",
           subtitle = "1995 to 2017
 *Results not statistically significant at first glance
 ") +
@@ -118,6 +118,6 @@ Invested Less in K-12 Education over time*",
 budget_plot
 ```
 
-```{r save}
+```{r save2}
 ggsave(filename= "budget_plot.png", device = "png")
 ```
