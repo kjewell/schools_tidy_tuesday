@@ -21,6 +21,9 @@ Souce: Common Core of Data from the National Center for Education Statistics (NC
 school_diversity <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-09-24/school_diversity.csv")
 states <- map_data("state")
 
+# and manually scraped from https://www.census.gov/programs-surveys/school-finances.html
+# *h/t https://twitter.com/HenriChung/status/1176634861378891776
+budget <- read.csv("pp_expenditures.csv")
 ```
 
 
@@ -35,6 +38,12 @@ school_diversity  %>%
 
 #add state abbreviation to map data
 states$ST<-state.abb[match(states$region,tolower(state.name))]
+
+#add state abbreviation to budget data
+budget$ST<-state.abb[match(budget$state,state.name)]
+
+#
+
 #states$abb <- state.abb[grep(states$region, state.name, ignore.case = TRUE)]
 
 school_diversity$white_count <- school_diversity$White/100 * school_diversity$Total
@@ -57,8 +66,10 @@ sd_st_type_wide$city_rural_difference_2017 <- abs(sd_st_type_wide$white_percenta
 
 sd_st_type_wide$city_rural_change <- sd_st_type_wide$city_rural_difference_2017 - sd_st_type_wide$city_rural_difference_1995
 
+city_rural_change_budget_data <- left_join(sd_st_type_wide, budget, by = "ST")
 
 city_rural_change_data <- left_join(states, sd_st_type_wide, by = "ST")
+
 ##
 ```
 
@@ -84,4 +95,29 @@ city_rural_change_plot
 
 ```{r save}
 ggsave(filename= "nces.png", device = "png")
+```
+
+
+
+```{r plot2}
+budget_plot <- city_rural_change_budget_data %>%
+  ggplot(mapping = aes(x = city_rural_change, y = pp_expen_change)) + 
+  geom_point() +
+  geom_text(aes(label=ST),hjust=0, vjust=0)+ 
+  geom_smooth(method = "lm") +
+  labs(caption = "Source: National Center for Education Statistics via Washington Post, Census h/t #TidyTuesday") +
+      theme(legend.position="bottom", plot.subtitle = element_text(face = "italic"))+
+  ggtitle(label = "States with Higher Urban/Rural Demographic Divergence 
+Invested Less in K-12 Education over time*",
+          subtitle = "1995 to 2017
+*Results not statistically significant at first glance
+") +
+  scale_y_continuous(name="Increase in State Per Pupil Spending",labels = scales::dollar) +
+  scale_x_continuous(name  ="Urban/Rural Divergence in White Non-Hispanic", breaks =  c(-0.16,-.10,0,.1,.2,.28), labels=scales::percent_format(accuracy = 1))
+
+budget_plot
+```
+
+```{r save}
+ggsave(filename= "budget_plot.png", device = "png")
 ```
